@@ -1,9 +1,11 @@
 #include <pthread.h>
 
 class CMutexLock;
+class CCondition;
 class CMutex{
 
     friend class CMutexLock;
+    friend class CCondition;
     public:
         explicit CMutex()
         {
@@ -14,7 +16,7 @@ class CMutex{
             pthread_mutex_destroy(&mutex);
         }
 
-    // only class CMutexLock can access
+    // only class CMutexLock or CCondition can access
     private:
         void lock()
         {
@@ -23,6 +25,10 @@ class CMutex{
         void unlock()
         {
             pthread_mutex_unlock(&mutex);
+        }
+        pthread_mutex_t* getMutex()
+        {
+            return &mutex; 
         }
 
     //uncopyable
@@ -51,3 +57,34 @@ class CMutexLock{
     private:
         CMutex& mutex;
 };
+
+class CCondition{
+    public:
+        explicit CCondition(CMutex &_mutex):mutex(_mutex)
+        {
+            pthread_cond_init(&cond, NULL); 
+        }
+        ~CCondition()
+        {
+            pthread_cond_destroy(&cond);
+        }
+        void wait()
+        {
+            pthread_cond_wait(&cond, mutex.getMutex());
+        }
+        void notify()
+        {
+            pthread_cond_signal(&cond);
+        }
+        void notifyAll()
+        {
+            pthread_cond_broadcast(&cond);
+        }
+    private:
+        CCondition(const CCondition&);
+        CCondition& operator=(const CCondition&);
+    private:
+        CMutex &mutex;
+        pthread_cond_t cond;
+};
+
